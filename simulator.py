@@ -10,6 +10,7 @@ Output files:
     SJF.txt
 '''
 import sys
+import copy
 
 input_file = 'input.txt'
 
@@ -41,14 +42,99 @@ def FCFS_scheduling(process_list):
 #Output_1 : Schedule list contains pairs of (time_stamp, proccess_id) indicating the time switching to that proccess_id
 #Output_2 : Average Waiting Time
 def RR_scheduling(process_list, time_quantum ):
-    return (["to be completed, scheduling process_list on round robin policy with time_quantum"], 0.0)
+     #store the (switching time, proccess_id) pair
+    schedule = []
+    pending_list = []
+    _process_list = copy.deepcopy(process_list)
+    current_time = 0
+    waiting_time = 0
+    while len(pending_list)!=0 or len(_process_list) != 0:
+        if len(pending_list) == 0: # fetch new process from process_list
+            new_process = _process_list.pop(0)
+            pending_list.append(new_process)
+            current_time = new_process.arrive_time
+        else:
+            processing_task = pending_list.pop(0)
+            schedule.append((current_time,processing_task.id))
+            waiting_time += current_time - processing_task.arrive_time
+            if processing_task.burst_time >= time_quantum: # if remaining completion time is longer than quantum
+                current_time += time_quantum
+            else: # if remainnig completion time is shorter than quantum
+                current_time += processing_task.burst_time
+            while len(_process_list) != 0 : # if there was incoming process in this period
+                if current_time >= _process_list[0].arrive_time:
+                    pending_list.append(_process_list.pop(0))
+                else:
+                    break
+            if processing_task.burst_time > time_quantum: # if remainnig completion time is longer than quantum, append back to pending_list
+                pending_list.append(Process(processing_task.id, current_time, processing_task.burst_time-time_quantum))
+                
+    return schedule, waiting_time/float(len(process_list))
 
 def SRTF_scheduling(process_list):
-    return (["to be completed, scheduling process_list on SRTF, using process.burst_time to calculate the remaining time of the current process "], 0.0)
+    #store the (switching time, proccess_id) pair
+    schedule = []
+    #pending_list example: [((process.id, process.arrive_time, process.remaining_time), process.last_termination_time)]
+    pending_list = [] 
+    _process_list = copy.deepcopy(process_list)
+    current_time = 0
+    waiting_time = 0
+    while len(pending_list)!=0 or len(_process_list) != 0:
+        if len(pending_list) == 0: # fetch new process from process_list
+            new_process = _process_list.pop(0)
+            pending_list.append((new_process, new_process.arrive_time))
+            current_time = new_process.arrive_time
+        else:
+            processing_task, last_termination_time = pending_list.pop(0)
+            waiting_time += current_time - last_termination_time
+            # append to schedule if there is a process switch
+            if len(schedule) == 0:
+                schedule.append((current_time,processing_task.id))
+            elif schedule[-1][1] != processing_task.id:
+                schedule.append((current_time,processing_task.id))
+            # if next task come before current task completes
+            if len(_process_list) != 0 and processing_task.burst_time + current_time > _process_list[0].arrive_time:
+                _processing_remaining_time = processing_task.burst_time-(_process_list[0].arrive_time-current_time)
+                # compute next current_time, i.e. current task termination time
+                current_time =  _process_list[0].arrive_time
+                pending_list.append((_process_list.pop(0), current_time))
+                pending_list.append((Process(processing_task.id, processing_task.arrive_time, _processing_remaining_time), current_time))
+                #sort pending_list according to remaining time and arrival time
+                pending_list = sorted(pending_list, key=lambda x: x[0].burst_time * 1e10 + x[0].arrive_time)
+                
+            else: # finish current task and compute next current_time
+                current_time += processing_task.burst_time
+    return schedule, waiting_time/float(len(process_list))
 
 def SJF_scheduling(process_list, alpha):
-    return (["to be completed, scheduling SJF without using information from process.burst_time"],0.0)
-
+    #store the (switching time, proccess_id) pair
+    schedule = []
+    pending_list = [] 
+    _process_list = copy.deepcopy(process_list)
+    estimated_time = dict((process.id, 5) for process in process_list)
+    current_time = 0
+    waiting_time = 0
+    while len(pending_list)!=0 or len(_process_list) != 0:
+        if len(pending_list) == 0: # fetch new process from process_list
+            new_process = _process_list.pop(0)
+            pending_list.append(new_process)
+            current_time = new_process.arrive_time
+        else:
+            processing_task = pending_list.pop(0)
+            schedule.append((current_time,processing_task.id))
+            waiting_time += current_time - processing_task.arrive_time
+            current_time += processing_task.burst_time
+            # updated estimated_time by burst_time
+            estimated_time[processing_task.id] = alpha * processing_task.burst_time + (1 - alpha) * estimated_time[processing_task.id]
+            while len(_process_list) != 0: # if there was incoming process in this period
+                if(_process_list[0].arrive_time <= current_time):
+                    pending_list.append(_process_list.pop(0))
+                else:
+                    break
+            # sort pending_list according to estimated time
+            pending_list = sorted(pending_list, key=lambda x: estimated_time[x.id])
+            
+    return schedule, waiting_time/float(len(process_list))
 
 def read_input():
     result = []
