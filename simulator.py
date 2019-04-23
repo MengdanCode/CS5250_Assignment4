@@ -11,6 +11,9 @@ Output files:
 '''
 import sys
 import copy
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
 
 input_file = 'input.txt'
 
@@ -152,7 +155,14 @@ def write_output(file_name, schedule, avg_waiting_time):
             f.write(str(item) + '\n')
         f.write('average waiting time %.2f \n'%(avg_waiting_time))
 
-
+def plotImage(x, y):
+    fig, ax = plt.subplots()
+    ax.plot(x, y)
+    ax.grid()
+    ax.set(xlabel='alpha', ylabel='average_waiting_time')
+    fig.savefig("test.png")
+    plt.show()   
+    
 def main(argv):
     process_list = read_input()
     print ("printing input ----")
@@ -162,15 +172,27 @@ def main(argv):
     FCFS_schedule, FCFS_avg_waiting_time =  FCFS_scheduling(process_list)
     write_output('FCFS.txt', FCFS_schedule, FCFS_avg_waiting_time )
     print ("simulating RR ----")
-    RR_schedule, RR_avg_waiting_time =  RR_scheduling(process_list,time_quantum = 2)
+    for i in range(10):
+        RR_schedule, RR_avg_waiting_time =  RR_scheduling(process_list,time_quantum = i+1)
+        print("RR_avg_waiting_time for quantum " + str(i+1) + " is %.2f"%(RR_avg_waiting_time))
+
+    RR_schedule, RR_avg_waiting_time =  RR_scheduling(process_list,time_quantum = 10)
     write_output('RR.txt', RR_schedule, RR_avg_waiting_time )
     print ("simulating SRTF ----")
     SRTF_schedule, SRTF_avg_waiting_time =  SRTF_scheduling(process_list)
     write_output('SRTF.txt', SRTF_schedule, SRTF_avg_waiting_time )
     print ("simulating SJF ----")
+    y = []
+    for i in np.arange(0.1, 1.1, 0.1):
+        SJF_schedule, SJF_avg_waiting_time =  SJF_scheduling(process_list, alpha = i)
+        y.append(SJF_avg_waiting_time)
+        print("RR_avg_waiting_time for quantum %.1f"%(i) + " is %.2f"%(SJF_avg_waiting_time))
+    plotImage(np.arange(0.1, 1.1, 0.1), y)
+    
     SJF_schedule, SJF_avg_waiting_time =  SJF_scheduling(process_list, alpha = 0.5)
     write_output('SJF.txt', SJF_schedule, SJF_avg_waiting_time )
 
 if __name__ == '__main__':
     main(sys.argv[1:])
 
+ 
